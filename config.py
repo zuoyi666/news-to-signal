@@ -3,6 +3,18 @@
 # All pipeline parameters are defined here to keep src modules clean and reusable.
 
 import os
+from pathlib import Path
+
+# Load environment variables from .env file (if it exists)
+# This allows secure API key management without committing keys to GitHub
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent / '.env'
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+        print(f"Loaded environment from {env_path}")
+except ImportError:
+    pass  # python-dotenv not installed, use system env vars only
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))

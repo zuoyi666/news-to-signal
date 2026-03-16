@@ -152,26 +152,57 @@ pip install -r requirements.txt
 # Source: https://sraf.nd.edu/loughranmcdonald-master-dictionary/
 ```
 
+### API Key Setup (Optional but Recommended)
+
+**⚠️ Security Warning:** Never commit API keys to GitHub!
+
+```bash
+# Step 1: Copy the example file
+cp .env.example .env
+
+# Step 2: Edit .env with your actual keys (this file is .gitignore'd)
+# Get free API keys:
+# - Finnhub: https://finnhub.io/register (60 calls/min)
+# - FMP: https://financialmodelingprep.com/developer/docs/pricing (250 calls/day)
+```
+
+Your `.env` file will look like:
+```
+FINNHUB_API_KEY=c1234567890abcdef
+FMP_API_KEY=your_actual_key_here
+```
+
+**No API Keys?** No problem! Use `--synthetic` mode (see below).
+
 ---
 
 ## 6. Usage
 
 ### Phase 1: Quick Start (Recommended)
 
-**Option A: Test with Synthetic Data (No API Keys Required)**
+**Option A: Test with Synthetic Data (No API Keys Required)** ⭐
 ```bash
-# Generate synthetic data for 180 tickers over 2 years
+# Generate realistic synthetic data for 180 tickers over 2 years
+# Perfect for testing the pipeline without API limits
 python run_phase1.py --synthetic --universe russell1000
 ```
 
-**Option B: Live Data with Free APIs**
+**Option B: Live Data with Free APIs** 🚀
 ```bash
-# Set API keys
+# Method 1: Use .env file (recommended)
+cp .env.example .env
+# Edit .env with your keys, then:
+python run_phase1.py --universe russell1000
+
+# Method 2: Environment variables
 export FINNHUB_API_KEY="your_key"
 export FMP_API_KEY="your_key"
-
-# Run with expanded universe
 python run_phase1.py --universe russell1000
+```
+
+**Option C: S&P 500 Only (Faster)**
+```bash
+python run_phase1.py --synthetic --universe sp500
 ```
 
 **Option C: S&P 500 Only (Faster)**
@@ -224,6 +255,73 @@ from src.kaggle_data_loader import load_kaggle_sentiment_dataset
 # Load pre-existing Kaggle dataset
 df = load_kaggle_sentiment_dataset("data/external/kaggle_news.csv")
 ```
+
+---
+
+## FAQ
+
+### Do I need API keys to run this project?
+
+**No!** You have three options:
+
+1. **Synthetic Data** (easiest): Run with `--synthetic` flag. No API keys needed, works immediately.
+2. **Kaggle Data**: Download historical news datasets from Kaggle (free, no API needed).
+3. **Live APIs**: Get free API keys for Finnhub/FMP for real-time data (recommended for production).
+
+### Will my API keys be exposed on GitHub?
+
+**No.** The project uses industry-standard security practices:
+
+- `.env` file stores your keys locally (never committed)
+- `.env` is in `.gitignore` (Git ignores it completely)
+- Only `.env.example` (with dummy values) is on GitHub
+- The code uses `python-dotenv` to load keys from `.env`
+
+**⚠️ Never commit your actual `.env` file!**
+
+### How do I get free API keys?
+
+| Service | Free Tier | Link |
+|---------|-----------|------|
+| Finnhub | 60 calls/minute | https://finnhub.io/register |
+| FMP | 250 calls/day | https://financialmodelingprep.com/developer/docs/pricing |
+
+Both offer free tiers sufficient for this project.
+
+### Can other users run my code without API keys?
+
+**Yes.** The project is designed for easy onboarding:
+
+```bash
+# Other users can run immediately with synthetic data
+python run_phase1.py --synthetic --universe sp500
+```
+
+The README clearly shows this as "Option A" because:
+- No setup required
+- No account creation
+- Demonstrates full pipeline functionality
+- Results are reproducible
+
+### What if I accidentally commit my API key?
+
+**Act immediately:**
+
+1. Revoke the key in your Finnhub/FMP dashboard
+2. Generate a new key
+3. Update your `.env` file (don't commit it!)
+4. Run `git rm --cached .env` if needed
+5. Consider using [git-filter-repo](https://github.com/newren/git-filter-repo) for history rewriting
+
+### Why not just put API keys in config.py?
+
+**Security risk.** If you commit `config.py` with keys:
+- Keys are permanently in Git history
+- Anyone can see them in commit logs
+- Malicious users could abuse your API quota
+- Violates API provider's Terms of Service
+
+The `.env` pattern is the industry standard for managing secrets.
 
 ---
 
