@@ -37,10 +37,37 @@ The methodology emphasizes research process rigor over absolute performance, dem
 
 ### 3.1 Data Architecture
 
-- **News Source**: Yahoo Finance RSS feeds (50 large-cap US equities)
-- **Price Data**: yfinance with retry logic and local caching
-- **Sample Period**: 365 calendar days (in-sample + validation + test)
-- **Forward Return**: $r_{t+1:t+5} = \ln(P_{t+5} / P_{t+1})$ where $t$ is news date
+**Phase 1: Enhanced Multi-Source Architecture**
+
+| Component | Original | Phase 1 Enhancement |
+|-----------|----------|---------------------|
+| **Universe** | 50 stocks | 180 stocks (Russell 1000 representative) |
+| **News Sources** | Yahoo RSS only | Finnhub + FMP + Yahoo RSS (fallback) |
+| **Sample Period** | 365 days | 730 days (2 years) |
+| **Price Data** | yfinance | yfinance + FMP fallback |
+
+**Data Source Priority:**
+1. **Finnhub API** (60 calls/min free tier) - Primary source
+2. **Financial Modeling Prep** (250 calls/day free tier) - Secondary
+3. **Yahoo Finance RSS** - Fallback for coverage gaps
+
+**API Keys Setup:**
+```bash
+export FINNHUB_API_KEY="your_key_here"
+export FMP_API_KEY="your_key_here"
+```
+
+Get free API keys:
+- Finnhub: https://finnhub.io/register
+- FMP: https://financialmodelingprep.com/developer/docs/pricing
+
+**Synthetic Data Option:**
+For testing without API limits, use synthetic data generation:
+```bash
+python run_phase1.py --synthetic --universe russell1000
+```
+
+**Forward Return:** $r_{t+1:t+5} = \ln(P_{t+5} / P_{t+1})$ where $t$ is news date
 
 ### 3.2 Feature Engineering
 
@@ -83,10 +110,14 @@ news-to-signal-case-study/
 ├── README.md                 # This file
 ├── requirements.txt          # Python dependencies
 ├── config.py                 # Central configuration
+├── run_phase1.py             # Phase 1 automation script
 ├── data/
 │   ├── raw/                  # Fetched news and prices
 │   ├── processed/            # Feature-engineered dataset
-│   └── reference/            # Universe definition, LMD dictionary
+│   └── reference/            # Universe definitions
+│       ├── universe.csv              # Original 50 stocks
+│       ├── sp500_universe.csv        # S&P 500 (110 stocks)
+│       └── russell1000_universe.csv  # Russell 1000 (180 stocks)
 ├── notebook/
 │   └── case_study.ipynb      # Complete research workflow
 ├── results/
@@ -94,11 +125,14 @@ news-to-signal-case-study/
 │   └── tables/               # Summary statistics
 └── src/
     ├── __init__.py
-    ├── preprocess.py         # Data fetching and cleaning
+    ├── preprocess.py          # Original preprocessing (Yahoo only)
+    ├── preprocess_v2.py       # Phase 1: Multi-source preprocessing
+    ├── data_sources.py        # Phase 1: Finnhub/FMP/Yahoo aggregation
+    ├── kaggle_data_loader.py  # Phase 1: Kaggle/synthetic data loader
     ├── feature_engineering.py # Text feature extraction
     ├── signal_construction.py # Cross-sectional z-scores
-    ├── evaluation.py         # IC, spread, risk metrics
-    └── walkforward.py        # Out-of-sample validation
+    ├── evaluation.py          # IC, spread, risk metrics
+    └── walkforward.py         # Out-of-sample validation
 ```
 
 ---
@@ -122,7 +156,30 @@ pip install -r requirements.txt
 
 ## 6. Usage
 
-### Run Complete Pipeline
+### Phase 1: Quick Start (Recommended)
+
+**Option A: Test with Synthetic Data (No API Keys Required)**
+```bash
+# Generate synthetic data for 180 tickers over 2 years
+python run_phase1.py --synthetic --universe russell1000
+```
+
+**Option B: Live Data with Free APIs**
+```bash
+# Set API keys
+export FINNHUB_API_KEY="your_key"
+export FMP_API_KEY="your_key"
+
+# Run with expanded universe
+python run_phase1.py --universe russell1000
+```
+
+**Option C: S&P 500 Only (Faster)**
+```bash
+python run_phase1.py --synthetic --universe sp500
+```
+
+### Original Pipeline (Yahoo RSS Only, 50 Stocks)
 
 ```python
 from src import preprocess, feature_engineering, signal_construction, evaluation
@@ -157,6 +214,15 @@ robustness = check_robustness(wf_results)
 
 ```bash
 jupyter notebook notebook/case_study.ipynb
+```
+
+### Load Kaggle Historical Data (Alternative)
+
+```python
+from src.kaggle_data_loader import load_kaggle_sentiment_dataset
+
+# Load pre-existing Kaggle dataset
+df = load_kaggle_sentiment_dataset("data/external/kaggle_news.csv")
 ```
 
 ---
