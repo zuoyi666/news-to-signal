@@ -1,0 +1,18 @@
+baseline:
+  grouping:
+    min_sample_drop: 9
+    min_sample_tercile: 15
+  signal:
+    signal_cols:
+      - signal_sentiment_only
+      - signal_sentiment_minus_uncertainty
+      - signal_full
+  metrics:
+    ic_min_obs_per_date: 3
+    walkforward:
+      train_days: 180
+      val_days: 90
+      test_days: 95
+      min_horizon_days: 21
+  output:
+    preferred_signal_version: v1

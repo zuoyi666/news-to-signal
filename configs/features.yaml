@@ -1,0 +1,17 @@
+features:
+  event_keywords:
+    - earnings
+    - guidance
+    - downgrade
+    - upgrade
+    - acquisition
+    - lawsuit
+    - partnership
+  signal_version: v1
+  signal_cols:
+    - signal_sentiment_only
+    - signal_sentiment_minus_uncertainty
+    - signal_full
+  sentiment_dict:
+    source: data/reference/loughran_mcdonald.csv
+    name: loughran_mcdonald

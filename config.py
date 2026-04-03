@@ -1,5 +1,5 @@
 # config.py
-# Central configuration for news-to-signal-case-study.
+# Central configuration for news-to-signal.
 # All pipeline parameters are defined here to keep src modules clean and reusable.
 
 import os
@@ -32,8 +32,31 @@ UNIVERSE_PATH   = UNIVERSE_PATHS.get(UNIVERSE_TYPE, UNIVERSE_PATHS["original"])
 LMD_DICT_PATH   = os.path.join(BASE_DIR, "data", "reference", "loughran_mcdonald.csv")
 RAW_DATA_PATH   = os.path.join(BASE_DIR, "data", "raw", "news_sample.csv")
 PROCESSED_PATH  = os.path.join(BASE_DIR, "data", "processed", "news_features.csv")
-FIGURES_DIR     = os.path.join(BASE_DIR, "results", "figures")
-TABLES_DIR      = os.path.join(BASE_DIR, "results", "tables")
+ARTIFACT_ROOT = os.path.join(BASE_DIR, "artifacts", "runs")
+
+
+def _resolve_notebook_run_dir() -> str:
+    """Resolve notebook output directory with environment override support.
+
+    Notebook workflows write exploratory outputs to an existing experiment run folder
+    under artifacts/runs so they are aligned with CLI run artifacts.
+    """
+    explicit_run = os.getenv("NEWS_TO_SIGNAL_ARTIFACT_RUN_DIR")
+    if explicit_run:
+        return explicit_run
+
+    run_root = Path(ARTIFACT_ROOT)
+    candidates = sorted(run_root.glob("exp_*"))
+    if candidates:
+        return str(candidates[-1])
+
+    # Safe fallback for first-run workflow before any experiment has completed.
+    return os.path.join(ARTIFACT_ROOT, "manual")
+
+
+_notebook_run_dir = _resolve_notebook_run_dir()
+FIGURES_DIR     = os.path.join(_notebook_run_dir, "figures")
+TABLES_DIR      = os.path.join(_notebook_run_dir, "tables")
 
 # ── Data Sources (Phase 1: Multi-source aggregation) ────────────────────────────
 DATA_SOURCE_PRIORITY = ["finnhub", "fmp", "yahoo_rss"]  # Priority order

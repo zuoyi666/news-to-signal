@@ -1,0 +1,20 @@
+data:
+  universe_type: russell1000
+  universe_path: ""
+  lookback_days: 730
+  holding_horizon: 5
+  max_news_per_ticker: 100
+  sources:
+    priority: ["finnhub", "fmp", "yahoo_rss"]
+    finnhub_enabled: true
+    fmp_enabled: true
+  rate_limits:
+    finnhub: 60
+    fmp: 250
+    yahoo_rss: 100
+
+paths:
+  raw_data: data/raw/news_sample.csv
+  processed_data: data/processed/news_features.csv
+  figures_dir: artifacts/runs/{run_name}/figures
+  tables_dir: artifacts/runs/{run_name}/tables

@@ -5,18 +5,23 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
 
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb_checkpoints/
 
-# Data（raw and processed data are large, keep reference only）
+# Data (raw and processed) are large; keep reference-only files in Git
 data/raw/*.csv
 data/processed/*.csv
+data/interim/*.csv
+data/external/
 
-# Results（generated outputs）
-results/figures/*.png
-results/tables/*.csv
+# Results (legacy outputs; keep ignored)
+results/
+# Artifacts (keep contract docs only; generated runs stay local)
+artifacts/runs/*
+!artifacts/runs/README.md
 
 # OS
 .DS_Store
@@ -32,6 +37,10 @@ Thumbs.db
 .env
 .venv/
 venv/
+# Local non-English notes and learning materials (kept offline)
+local_notes/
 INTERVIEW_PREP.md
-项目开发记录.md
 auto_commit.sh
+task_plan.md
+findings.md
+progress.md

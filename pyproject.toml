@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "news-to-signal"
+version = "0.1.0"
+description = "News-to-Signal standardized quantitative research template"
+requires-python = ">=3.9"
+dependencies = [
+  "feedparser>=6.0",
+  "jupyter>=1.0",
+  "matplotlib>=3.7",
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "python-dotenv>=1.0.0",
+  "PyYAML>=6.0",
+  "scipy>=1.10",
+  "yfinance>=0.2"
+]
