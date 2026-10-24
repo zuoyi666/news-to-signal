@@ -11,7 +11,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from config import SIGNAL_COLS
+from config import HOLDING_HORIZON, SIGNAL_COLS
 from src.evaluation import (
     compute_daily_ic,
     compute_daily_spread,
@@ -20,23 +20,40 @@ from src.evaluation import (
 )
 
 
+def _purge_before(split_df: pd.DataFrame, next_start, purge_bdays: int) -> pd.DataFrame:
+    """Drop rows whose forward-return label overlaps the next period."""
+    if next_start is None or split_df.empty:
+        return split_df
+    cutoff = pd.Timestamp(next_start) - pd.offsets.BDay(purge_bdays)
+    return split_df[split_df["date"] <= cutoff]
+
+
 def split_data_by_date(
     df: pd.DataFrame,
     train_days: int = 180,
     val_days: int = 90,
     test_days: int = 95,
+    purge_bdays: int = HOLDING_HORIZON + 2,
 ) -> dict[str, pd.DataFrame]:
     """
-    Split data into train/validation/test sets by date.
+    Split data into train/validation/test sets by date, purging the boundaries.
+
+    A row dated d carries a label from Close[d'+1] to Close[d'+1+HOLDING_HORIZON]
+    (d' = first trading day on or after d), so rows just before the next period
+    share price data with that period's labels. Rows within `purge_bdays`
+    business days of the next period's first date are therefore dropped; the
+    default (horizon + 2) covers the label plus one exchange holiday.
 
     Args:
         df: DataFrame with 'date' column.
         train_days: Number of days for training period.
         val_days: Number of days for validation period.
         test_days: Number of days for test period.
+        purge_bdays: Business days purged before each following period.
 
     Returns:
-        Dictionary with 'train', 'validation', 'test' DataFrames.
+        Dictionary with 'train', 'validation', 'test' DataFrames, the number of
+        dates kept in each, and the number of dates purged from train/validation.
     """
     df = df.copy()
     df["date"] = pd.to_datetime(df["date"])
@@ -63,17 +80,21 @@ def split_data_by_date(
     val_dates = unique_dates[train_end:val_end]
     test_dates = unique_dates[val_end:val_end + test_days]
 
-    train_df = df[df["date"].isin(train_dates)]
-    val_df = df[df["date"].isin(val_dates)]
+    val_start = val_dates[0] if len(val_dates) else None
+    test_start = test_dates[0] if len(test_dates) else None
+    train_df = _purge_before(df[df["date"].isin(train_dates)], val_start, purge_bdays)
+    val_df = _purge_before(df[df["date"].isin(val_dates)], test_start, purge_bdays)
     test_df = df[df["date"].isin(test_dates)]
 
     return {
         "train": train_df,
         "validation": val_df,
         "test": test_df,
-        "train_dates": len(train_dates),
-        "val_dates": len(val_dates),
-        "test_dates": len(test_dates),
+        "train_dates": train_df["date"].nunique(),
+        "val_dates": val_df["date"].nunique(),
+        "test_dates": test_df["date"].nunique(),
+        "purged_train_dates": len(train_dates) - train_df["date"].nunique(),
+        "purged_val_dates": len(val_dates) - val_df["date"].nunique(),
     }
 
 

@@ -151,9 +151,10 @@ def compute_single_return(
     if t_prime_idx is None:
         return np.nan
 
-    # We need T'+1 and T'+horizon
+    # Enter at Close[T'+1] and hold `horizon` full trading intervals:
+    # ln(Close[T'+1+horizon] / Close[T'+1]).
     entry_idx = t_prime_idx + 1
-    exit_idx = t_prime_idx + horizon
+    exit_idx = entry_idx + horizon
 
     if exit_idx >= len(trading_days):
         return np.nan
@@ -214,8 +215,8 @@ def run_quality_assertions_v2(df: pd.DataFrame) -> pd.DataFrame:
     assert df["ticker"].isna().sum() == 0, "ticker column contains null values"
     print("✓ ticker column has no nulls")
 
-    # Check 3: coverage statistics
-    cutoff_date = (pd.to_datetime(df["date"]).max() - pd.offsets.BDay(HOLDING_HORIZON)).normalize()
+    # Check 3: coverage statistics (the label ends HOLDING_HORIZON + 1 trading days after T')
+    cutoff_date = (pd.to_datetime(df["date"]).max() - pd.offsets.BDay(HOLDING_HORIZON + 1)).normalize()
     eligible_mask = pd.to_datetime(df["date"]).dt.normalize() <= cutoff_date
     eligible_count = int(eligible_mask.sum())
 
