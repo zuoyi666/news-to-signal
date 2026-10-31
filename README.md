@@ -2,6 +2,8 @@
 
 This repository is the upstream signal-construction layer in the research stack. It builds standardized cross-sectional news signals and exports them for downstream consumption by the implementation-aware backtesting repository [cost-aware-backtest](https://github.com/zuoyi666/cost-aware-backtest).
 
+> **Status:** prototype, kept for correctness fixes only. Follow-up research happens in a separate project, [Quant Research Lab (QRL)](#relationship-to-quant-research-lab-qrl). This repository makes no performance claims.
+
 ## Problem
 
 Can textual features from financial news predict short-horizon cross-sectional equity returns?
@@ -193,6 +195,36 @@ Files that should stay local:
 - generated run outputs under `artifacts/runs/<run_name>/`
 - raw, interim, and external data under `data/raw/`, `data/interim/`, and `data/external/`
 - local planning notes and scratch files
+
+## Relationship to Quant Research Lab (QRL)
+
+This repository is an earlier prototype. Its successor, Quant Research Lab (QRL), is a separate project. It redesigns the research workflow under a research charter written before any results were seen. QRL does not reuse this code; it builds on the problems this prototype exposed.
+
+| Topic | news-to-signal (this repo) | QRL |
+|---|---|---|
+| Universe | Static list of current constituents, keyed by ticker | Point-in-time S&P 500 membership on each date, keyed by permanent security identifiers |
+| Label | `ln(Close[T'+1+5] / Close[T'+1])`: a close-to-close log return | Simple total return from the open of t+1 to the open of t+6, minus the mean over the complete point-in-time membership on t |
+| Validation | One chronological train / validation / test split with purged boundaries; Newey-West t-statistics | Purged expanding-window walk-forward, an untouched lockbox, Newey-West intervals, negative controls and a known-answer test |
+| Costs | None at this stage (see cost-aware-backtest) | Dollar-neutral quintile sleeves netted at the security level; 10 bps per trade; 50 bps a year borrow; dividends owed on shorts booked separately |
+| Data | Free news APIs and public price data | A licensed academic market database (kept private), plus a fully synthetic demonstrator |
+
+What carried over:
+
+- This repository's current-constituent universe has survivorship bias. That is the problem QRL's point-in-time universe is designed around.
+- Overlapping multi-day labels need purging and HAC (Newey-West) inference. Both were added here afterwards, in [PR #1](https://github.com/zuoyi666/news-to-signal/pull/1).
+- News and sentiment data are deliberately outside QRL's first study, because its charter excludes them. This repository remains the only place where that idea is explored.
+
+QRL's repository is currently private.
+
+### Known limitations at a glance
+
+- Survivorship bias from the static universe, and ticker changes are not tracked.
+- Short news history from free APIs; coverage depends on universe and date.
+- Log-return labels: rank IC is unaffected, but spread statistics are close to, not exactly, simple-return spreads.
+- No transaction costs at this stage.
+- Results are not research-grade evidence.
+
+Details are under [Limitations](#limitations) below.
 
 ## Limitations
 
