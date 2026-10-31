@@ -9,9 +9,9 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from scipy.stats import spearmanr, ttest_1samp, skew, kurtosis
+from scipy.stats import norm, spearmanr, ttest_1samp, skew, kurtosis
 
-from config import MIN_SAMPLE_DROP, MIN_SAMPLE_TERCILE, SIGNAL_COLS
+from config import HOLDING_HORIZON, MIN_SAMPLE_DROP, MIN_SAMPLE_TERCILE, SIGNAL_COLS
 
 
 def get_grouping_config(n_obs: int) -> tuple[int, str]:
@@ -248,33 +248,64 @@ def compute_monthly_stability(spread_series: pd.Series) -> pd.Series:
     return monthly
 
 
-def compute_ic_statistics(ic_series: pd.Series) -> dict:
+def newey_west_tstat(values, lags: int) -> float:
+    """
+    t-statistic of the mean using a Newey-West (Bartlett kernel) long-run variance.
+
+    Daily ICs computed on overlapping multi-day labels are autocorrelated, so a
+    plain t-test overstates significance. Lags of at least horizon - 1 cover the
+    overlap; lags=0 reduces to the mean over sqrt(population variance / n).
+    """
+    x = np.asarray(values, dtype=float)
+    n = len(x)
+    if n < 2:
+        return np.nan
+    e = x - x.mean()
+    long_run_var = e @ e / n
+    for k in range(1, min(lags, n - 1) + 1):
+        weight = 1.0 - k / (lags + 1.0)
+        long_run_var += 2.0 * weight * (e[k:] @ e[:-k]) / n
+    if long_run_var <= 0:
+        return np.nan
+    return float(x.mean() / np.sqrt(long_run_var / n))
+
+
+def compute_ic_statistics(ic_series: pd.Series, nw_lags: Optional[int] = None) -> dict:
     """
     Compute statistical significance tests for IC series.
 
-    Tests the null hypothesis that the true mean IC is zero.
+    Tests the null hypothesis that the true mean IC is zero. The primary
+    t-statistic and p-value are Newey-West (HAC) because consecutive daily
+    labels overlap; the plain t-test is kept as `*_naive` for comparison.
 
     Args:
         ic_series: Series of daily Information Coefficients.
+        nw_lags: Newey-West lags; defaults to HOLDING_HORIZON.
 
     Returns:
         Dictionary with statistical metrics:
             - mean_ic: Mean of daily ICs
             - ic_std: Standard deviation of daily ICs
-            - t_statistic: t-statistic for mean IC test
-            - p_value: Two-tailed p-value
+            - t_statistic: Newey-West t-statistic for the mean IC
+            - p_value: Two-tailed normal p-value of the Newey-West t-statistic
+            - t_statistic_naive / p_value_naive: plain one-sample t-test
+            - nw_lags: Newey-West lags used
             - annualized_ir: Information Ratio annualized (IC_mean / IC_std * sqrt(252))
-            - significant_5pct: Boolean, True if p < 0.05
+            - significant_5pct: Boolean, True if the Newey-West p < 0.05
             - skewness: Skewness of IC distribution
             - kurtosis: Excess kurtosis of IC distribution
             - n_observations: Number of valid IC observations
     """
+    lags = HOLDING_HORIZON if nw_lags is None else int(nw_lags)
     if len(ic_series) < 2:
         return {
             "mean_ic": np.nan,
             "ic_std": np.nan,
             "t_statistic": np.nan,
             "p_value": np.nan,
+            "t_statistic_naive": np.nan,
+            "p_value_naive": np.nan,
+            "nw_lags": lags,
             "annualized_ir": np.nan,
             "significant_5pct": False,
             "skewness": np.nan,
@@ -292,6 +323,9 @@ def compute_ic_statistics(ic_series: pd.Series) -> dict:
             "ic_std": np.nan,
             "t_statistic": np.nan,
             "p_value": np.nan,
+            "t_statistic_naive": np.nan,
+            "p_value_naive": np.nan,
+            "nw_lags": lags,
             "annualized_ir": np.nan,
             "significant_5pct": False,
             "skewness": np.nan,
@@ -302,8 +336,11 @@ def compute_ic_statistics(ic_series: pd.Series) -> dict:
     mean_ic = clean_ic.mean()
     ic_std = clean_ic.std(ddof=1)  # Sample standard deviation
 
-    # t-test for mean different from zero
-    t_stat, p_val = ttest_1samp(clean_ic, 0)
+    # Plain t-test, kept for comparison; it ignores the label overlap.
+    t_naive, p_naive = ttest_1samp(clean_ic, 0)
+    # Primary test: Newey-West t-statistic with a two-sided normal p-value.
+    t_stat = newey_west_tstat(clean_ic, lags)
+    p_val = float(2.0 * norm.sf(abs(t_stat))) if np.isfinite(t_stat) else np.nan
 
     # Annualized Information Ratio (assuming 252 trading days)
     annualized_ir = mean_ic / ic_std * np.sqrt(252) if ic_std > 0 else np.nan
@@ -313,8 +350,11 @@ def compute_ic_statistics(ic_series: pd.Series) -> dict:
         "ic_std": ic_std,
         "t_statistic": t_stat,
         "p_value": p_val,
+        "t_statistic_naive": t_naive,
+        "p_value_naive": p_naive,
+        "nw_lags": lags,
         "annualized_ir": annualized_ir,
-        "significant_5pct": p_val < 0.05,
+        "significant_5pct": bool(p_val < 0.05) if np.isfinite(p_val) else False,
         "skewness": skew(clean_ic),
         "kurtosis": kurtosis(clean_ic),
         "n_observations": n,

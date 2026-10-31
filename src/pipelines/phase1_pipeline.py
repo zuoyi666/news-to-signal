@@ -94,6 +94,40 @@ def _run_synthetic(universe_type: str) -> pd.DataFrame:
     return synthetic
 
 
+def render_summary(run_name: str, pipeline_stamp: str, baseline_df: pd.DataFrame, horizon: int) -> str:
+    """Markdown run summary that reports every candidate signal and the main limitations."""
+    lines = [
+        "# Experiment Summary",
+        "",
+        f"- Run: `{run_name}`",
+        f"- Timestamp (UTC): `{pipeline_stamp}`",
+        "",
+    ]
+    if len(baseline_df) > 0:
+        # Every candidate is listed: headlining the best |mean_ic| would be in-sample selection.
+        lines.extend(["## Candidate signals (all reported)", ""])
+        for row in baseline_df.itertuples(index=False):
+            lines.append(
+                f"- `{row.signal}`: mean_ic `{row.mean_ic:.6f}`, "
+                f"Newey-West t `{row.ic_t_statistic:.3f}`, annualized IR `{row.annualized_ir:.3f}`"
+            )
+    else:
+        lines.append("- No baseline metrics were produced.")
+    lines.extend(
+        [
+            "",
+            "## Limitations",
+            "",
+            "- Universe: a static list of current constituents keyed by ticker, so names that were "
+            "delisted or removed are missing (survivorship bias).",
+            f"- Label: log return from Close[T'+1] to Close[T'+1+{horizon}], where T' is the first "
+            "trading day on or after the news date. No transaction costs here; see cost-aware-backtest.",
+            "- Significance: Newey-West t-statistics, because consecutive daily labels overlap.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def _safe_df_to_dict_list(df: pd.DataFrame):
     if df is None or len(df) == 0:
         return []
@@ -191,27 +225,10 @@ def run_experiment(
     )
 
     summary_path = run_dir / "summary.md"
-    if len(baseline_df) > 0:
-        best_signal = baseline_df.loc[baseline_df["mean_ic"].abs().idxmax()]
-        summary = [
-            "# Experiment Summary",
-            "",
-            f"- Run: `{run_name}`",
-            f"- Timestamp (UTC): `{pipeline_stamp}`",
-            "",
-            "## Best signal (by |mean_ic|)",
-            f"- signal: `{best_signal['signal']}`",
-            f"- mean_ic: `{best_signal['mean_ic']:.6f}`",
-            f"- annualized_ic: `{best_signal['annualized_ir']:.6f}`",
-        ]
-    else:
-        summary = [
-            "# Experiment Summary",
-            "",
-            f"- Run: `{run_name}`",
-            "- No baseline metrics were produced.",
-        ]
-    summary_path.write_text("\\n".join(summary), encoding="utf-8")
+    summary_path.write_text(
+        render_summary(run_name, pipeline_stamp, baseline_df, project_config.HOLDING_HORIZON),
+        encoding="utf-8",
+    )
 
     return {
         "run_dir": str(run_dir),

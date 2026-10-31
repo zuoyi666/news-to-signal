@@ -84,8 +84,9 @@ news-to-signal/
 
 ### Label
 
-- Forward return label: `future_return_5d = log(P[t+5]/P[t+1])`
-- Trade date is normalized per news date
+- Forward return label: `future_return_5d = ln(Close[T'+1+5] / Close[T'+1])`, where `T'` is the first trading day on or after the news date
+- The label skips one day after the news (entry at `Close[T'+1]`) and then covers exactly 5 trading intervals
+- It is a log return. Rank IC is unaffected; spread statistics are close to, but not exactly, simple-return spreads
 
 ### Features
 
@@ -102,8 +103,9 @@ news-to-signal/
 Validation modules include:
 
 - Cross-sectional IC and spread metrics
-- Baseline comparison across candidate signals
-- Walk-forward split and robustness checks
+- Baseline comparison across candidate signals; `summary.md` reports every candidate rather than the best one
+- Chronological train / validation / test split with purged boundaries. Rows within `HOLDING_HORIZON + 2` business days before the next period are dropped, because their 5-day labels overlap that period (one extra day covers an exchange holiday)
+- IC significance from Newey-West t-statistics (lags = holding horizon), because consecutive daily labels overlap. The plain t-test is kept as `t_statistic_naive` for comparison
 
 All experiments are standardized by run name and persisted as machine-readable artifacts.
 
@@ -194,6 +196,7 @@ Files that should stay local:
 
 ## Limitations
 
+- Survivorship bias: the universes are static lists of current constituents keyed by ticker. Delisted or removed names are missing, and ticker changes are not tracked. A point-in-time membership source with permanent identifiers would be needed for research-grade results.
 - Data collection is API-dependent (Finnhub/FMP may rate limit/free-tier limits)
 - Coverage is universe/date dependent
 - Figure generation is currently lightweight and does not yet persist all exploratory plots

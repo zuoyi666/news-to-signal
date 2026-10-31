@@ -183,8 +183,9 @@ def compute_forward_return(
     horizon: int = HOLDING_HORIZON,
 ) -> Optional[float]:
     """
-    Compute the forward return: ln(Close[T'+horizon] / Close[T'+1])
-    where T' is the first trading day on or after the news date.
+    Compute the forward return: ln(Close[T'+1+horizon] / Close[T'+1])
+    where T' is the first trading day on or after the news date, so the
+    label spans exactly `horizon` trading intervals after a one-day buffer.
 
     Args:
         ticker: Stock ticker symbol.
@@ -211,9 +212,9 @@ def compute_forward_return(
     if t_prime_idx is None:
         return None
 
-    # We need T'+1 and T'+horizon
+    # Enter at Close[T'+1] and hold `horizon` full trading intervals.
     entry_idx = t_prime_idx + 1
-    exit_idx = t_prime_idx + horizon
+    exit_idx = entry_idx + horizon
 
     if exit_idx >= len(trading_days):
         return None
@@ -350,8 +351,9 @@ def run_quality_assertions(df: pd.DataFrame) -> pd.DataFrame:
     print("✓ ticker column has no nulls")
 
     # Check 3: future_return_5d non-null ratio >= 0.80 on rows where
-    # a full holding horizon is expected to be available.
-    cutoff_date = (pd.to_datetime(df["date"]).max() - pd.offsets.BDay(HOLDING_HORIZON)).normalize()
+    # a full holding horizon is expected to be available (the label ends
+    # HOLDING_HORIZON + 1 trading days after T').
+    cutoff_date = (pd.to_datetime(df["date"]).max() - pd.offsets.BDay(HOLDING_HORIZON + 1)).normalize()
     eligible_mask = pd.to_datetime(df["date"]).dt.normalize() <= cutoff_date
     eligible_count = int(eligible_mask.sum())
     ineligible_count = int((~eligible_mask).sum())
