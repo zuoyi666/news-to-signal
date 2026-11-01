@@ -203,9 +203,9 @@ This repository is an earlier prototype. Its successor, Quant Research Lab (QRL)
 | Topic | news-to-signal (this repo) | QRL |
 |---|---|---|
 | Universe | Static list of current constituents, keyed by ticker | Point-in-time S&P 500 membership on each date, keyed by permanent security identifiers |
-| Label | `ln(Close[T'+1+5] / Close[T'+1])`: a close-to-close log return | Simple total return from the open of t+1 to the open of t+6, minus the mean over the complete point-in-time membership on t |
+| Label | `ln(Close[T'+1+5] / Close[T'+1])`: a close-to-close log return | Simple total return from the close of t+1 to the close of t+6, compounded from daily total returns, minus the mean over the complete point-in-time membership on t; the original open-to-open label stays as a pre-registered robustness study |
 | Validation | One chronological train / validation / test split with purged boundaries; Newey-West t-statistics | Purged expanding-window walk-forward, an untouched lockbox, Newey-West intervals, negative controls and a known-answer test |
-| Costs | None at this stage (see cost-aware-backtest) | Dollar-neutral quintile sleeves netted at the security level; 10 bps per trade; 50 bps a year borrow; dividends owed on shorts booked separately |
+| Costs | None at this stage (see cost-aware-backtest) | Dollar-neutral quintile sleeves netted at the security level; 10 bps one-way on net traded notional; 50 bps a year borrow; dividends owed on shorts come through the daily total returns |
 | Data | Free news APIs and public price data | A licensed academic market database (kept private), plus a fully synthetic demonstrator |
 
 What carried over:
