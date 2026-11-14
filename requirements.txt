@@ -7,3 +7,4 @@ yfinance>=0.2
 feedparser>=6.0
 python-dotenv>=1.0.0  # For secure API key management
 PyYAML>=6.0
+pyarrow>=14.0  # parquet export, the preferred signal format

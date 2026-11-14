@@ -55,7 +55,7 @@ def test_write_signal_snapshot_emits_downstream_contract(tmp_path):
     if signal_path.suffix == ".parquet":
         exported = pd.read_parquet(signal_path)
     else:
-        exported = pd.read_csv(signal_path)
+        exported = pd.read_csv(signal_path, dtype={"horizon": str})   # CSV carries no types; the contract says string
 
     manifest = json.loads(Path(artifacts["manifest"]).read_text(encoding="utf-8"))
 
