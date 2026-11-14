@@ -2,7 +2,7 @@
 
 This repository is the upstream signal-construction layer in the research stack. It builds standardized cross-sectional news signals and exports them for downstream consumption by the implementation-aware backtesting repository [cost-aware-backtest](https://github.com/zuoyi666/cost-aware-backtest).
 
-> **Status:** prototype, kept for correctness fixes only. Follow-up research happens in a separate project, [Quant Research Lab (QRL)](#relationship-to-quant-research-lab-qrl). This repository makes no performance claims.
+> **Status:** a finished prototype. It makes no performance claims: the news history available from free APIs is short, and the saved case study was too small to support any conclusion.
 
 ## Problem
 
@@ -71,6 +71,21 @@ news-to-signal/
 ├─ tests/
 └─ legacy files
 ```
+
+### Where the logic lives
+
+The folders under `src/` are thin entry points; most of the logic sits in older top-level modules that they call:
+
+| Step | Entry point | Logic |
+|---|---|---|
+| Run an experiment | `cli.py`, `src/pipelines/phase1_pipeline.py` | `config.py` for paths and API settings |
+| Fetch news and prices, build labels, aggregate per ticker-day | `src/data/preprocess.py` | `src/preprocess_v2.py`, `src/data_sources.py` |
+| Text features | `src/features/engineering.py` | `src/feature_engineering.py` |
+| Cross-sectional signals | `src/models/signal_builder.py` | `src/signal_construction.py` |
+| IC, spreads, walk-forward | `src/validation/evaluation.py` | `src/evaluation.py`, `src/walkforward.py` |
+| Export for the backtest | `src/utils/signal_schema.py` | |
+
+Also present: `src/preprocess.py`, the first, Yahoo-only pipeline, which the case-study notebook still uses; `src/kaggle_data_loader.py`, which generates the data for `--synthetic` runs; and, from the earlier layout and not used by the pipeline, `src/kaggle_integration.py` (a stand-alone dataset downloader), `src/yahoo_enhanced.py` and `notebook/` (a marker pointing to `notebooks/`).
 
 ## Data
 
@@ -196,27 +211,7 @@ Files that should stay local:
 - raw, interim, and external data under `data/raw/`, `data/interim/`, and `data/external/`
 - local planning notes and scratch files
 
-## Relationship to Quant Research Lab (QRL)
-
-This repository is an earlier prototype. Its successor, Quant Research Lab (QRL), is a separate project. It redesigns the research workflow under a research charter written before any results were seen. QRL does not reuse this code; it builds on the problems this prototype exposed.
-
-| Topic | news-to-signal (this repo) | QRL |
-|---|---|---|
-| Universe | Static list of current constituents, keyed by ticker | Point-in-time S&P 500 membership on each date, keyed by permanent security identifiers |
-| Label | `ln(Close[T'+1+5] / Close[T'+1])`: a close-to-close log return | Simple total return from the close of t+1 to the close of t+6, compounded from daily total returns, minus the mean over the complete point-in-time membership on t; the original open-to-open label stays as a pre-registered robustness study |
-| Validation | One chronological train / validation / test split with purged boundaries; Newey-West t-statistics | Purged expanding-window walk-forward, an untouched lockbox, Newey-West intervals, negative controls and a known-answer test |
-| Costs | None at this stage (see cost-aware-backtest) | Dollar-neutral quintile sleeves netted at the security level; 10 bps one-way on net traded notional; 50 bps a year borrow; dividends owed on shorts come through the daily total returns |
-| Data | Free news APIs and public price data | A licensed academic market database (kept private), plus a fully synthetic demonstrator |
-
-What carried over:
-
-- This repository's current-constituent universe has survivorship bias. That is the problem QRL's point-in-time universe is designed around.
-- Overlapping multi-day labels need purging and HAC (Newey-West) inference. Both were added here afterwards, in [PR #1](https://github.com/zuoyi666/news-to-signal/pull/1).
-- News and sentiment data are deliberately outside QRL's first study, because its charter excludes them. This repository remains the only place where that idea is explored.
-
-QRL's repository is currently private.
-
-### Known limitations at a glance
+## Known limitations at a glance
 
 - Survivorship bias from the static universe, and ticker changes are not tracked.
 - Short news history from free APIs; coverage depends on universe and date.
@@ -230,7 +225,8 @@ Details are under [Limitations](#limitations) below.
 
 - Survivorship bias: the universes are static lists of current constituents keyed by ticker. Delisted or removed names are missing, and ticker changes are not tracked. A point-in-time membership source with permanent identifiers would be needed for research-grade results.
 - Data collection is API-dependent (Finnhub/FMP may rate limit/free-tier limits)
-- Coverage is universe/date dependent
+- Coverage is universe/date dependent, and each ticker keeps at most `max_news_per_ticker` items from the APIs, so coverage leans towards recent dates
+- Each news item is assigned to its calendar date. The text features of a ticker-day are computed on all of its headlines joined together, and the dictionary scores count each word once per ticker-day
 - Figure generation is currently lightweight and does not yet persist all exploratory plots
 
 ## Reproducibility

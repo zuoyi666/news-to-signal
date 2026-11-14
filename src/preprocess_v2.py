@@ -189,10 +189,9 @@ def aggregate_headlines(news_df: pd.DataFrame) -> pd.DataFrame:
     counts = df.groupby(["ticker", "date"]).size().reset_index(name="headline_count")
     grouped = grouped.merge(counts, on=["ticker", "date"])
 
-    # For display, keep only the last headline
-    last_headlines = df.groupby(["ticker", "date"])["headline"].last().reset_index()
-    grouped = grouped.drop(columns=["headline"])
-    grouped = grouped.merge(last_headlines, on=["ticker", "date"])
+    # `headline` keeps every headline of the ticker-day, joined with " | ", because the text
+    # features are computed from it. (It used to be replaced by the last headline only, which
+    # dropped the others from the features while headline_count still counted them.)
 
     # Reorder columns
     cols = ["date", "ticker", "headline", "headline_count", "source", "future_return_5d"]
